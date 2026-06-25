@@ -1,0 +1,23 @@
+# Workspace Tasklist
+primeseat_task_list.md
+
+# Eventora base template project folder
+Eventora-MERN-main/
+
+# Postman Collections
+*Postman_Collection.json
+*.postman_collection.json
+
+# Primeseat Subproject Ignore Rules (in case git is initialized at workspace root)
+Primeseat/node_modules/
+Primeseat/**/node_modules/
+Primeseat/backend/.env
+Primeseat/backend/.env.*
+Primeseat/frontend/dist/
+Primeseat/frontend/build/
+Primeseat/*.log
+Primeseat/**/*.log
+Primeseat/.vscode/
+Primeseat/.idea/
+.DS_Store
+Thumbs.db
