@@ -21,3 +21,7 @@ Primeseat/.vscode/
 Primeseat/.idea/
 .DS_Store
 Thumbs.db
+
+# Documentation & Resume guides
+Primeseat/documentation.md
+

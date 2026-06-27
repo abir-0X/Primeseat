@@ -38,3 +38,6 @@ logs/
 .DS_Store
 Thumbs.db
 
+# Documentation & Resume guides
+documentation.md
+

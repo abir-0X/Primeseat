@@ -34,24 +34,28 @@ ChartJS.register(
 );
 
 const AdminDashboard = () => {
+    // Auth context session context parameters
     const { user } = useContext(AuthContext);
     const navigate = useNavigate();
     
-    // Tab State: 'analytics' | 'events' | 'bookings'
+    // Tab navigation switcher state: 'analytics' | 'events' | 'bookings'
     const [activeTab, setActiveTab] = useState('analytics');
     
+    // Core administrative dashboards records lists
     const [events, setEvents] = useState([]);
     const [bookings, setBookings] = useState([]);
     const [analytics, setAnalytics] = useState(null);
     const [loading, setLoading] = useState(true);
+    
+    // Transactional loader flags (e.g. creating/editing modal actions)
     const [actionLoading, setActionLoading] = useState(false);
 
-    // Modal state
+    // Modal view triggers
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [showEditModal, setShowEditModal] = useState(false);
     const [selectedEvent, setSelectedEvent] = useState(null);
 
-    // Form inputs state
+    // Event creation and modification schema state
     const [formData, setFormData] = useState({
         title: '', 
         description: '', 
@@ -63,6 +67,7 @@ const AdminDashboard = () => {
         image: ''
     });
 
+    // Enforce Admin credentials route guards
     useEffect(() => {
         if (!user || user.role !== 'admin') {
             navigate('/login');
@@ -71,6 +76,10 @@ const AdminDashboard = () => {
         fetchData();
     }, [user, navigate]);
 
+    /**
+     * Query Dashboard Information
+     * Aggregates administrative data (events lists, reservation bookings, and revenue KPIs).
+     */
     const fetchData = async () => {
         setLoading(true);
         try {
@@ -89,6 +98,9 @@ const AdminDashboard = () => {
         }
     };
 
+    /**
+     * Admin: Create New Event Record
+     */
     const handleCreateEvent = async (e) => {
         e.preventDefault();
         setActionLoading(true);
@@ -104,6 +116,9 @@ const AdminDashboard = () => {
         }
     };
 
+    /**
+     * Admin: Populate and Open Event Editor Modal
+     */
     const handleOpenEditModal = (event) => {
         setSelectedEvent(event);
         setFormData({
@@ -119,6 +134,9 @@ const AdminDashboard = () => {
         setShowEditModal(true);
     };
 
+    /**
+     * Admin: Save Edited Event parameters
+     */
     const handleUpdateEvent = async (e) => {
         e.preventDefault();
         setActionLoading(true);
@@ -134,6 +152,9 @@ const AdminDashboard = () => {
         }
     };
 
+    /**
+     * Admin: Permanently Delete Event and associated bookings
+     */
     const handleDeleteEvent = async (id) => {
         if (window.confirm('Are you sure you want to delete this event? This will affect any bookings connected to it.')) {
             try {
@@ -145,6 +166,9 @@ const AdminDashboard = () => {
         }
     };
 
+    /**
+     * Admin: Update Booking Reservation Status (Confirmed / Rejected / Pending)
+     */
     const handleUpdateBookingStatus = async (id, status) => {
         try {
             await api.put(`/bookings/${id}/status`, { status });
@@ -162,6 +186,9 @@ const AdminDashboard = () => {
         }
     };
 
+    /**
+     * Admin: Update Booking Payment Status (Paid / Not Paid)
+     */
     const handleUpdatePaymentStatus = async (id, paymentStatus) => {
         try {
             await api.put(`/bookings/${id}/payment`, { paymentStatus });
@@ -177,6 +204,9 @@ const AdminDashboard = () => {
         }
     };
 
+    /**
+     * Reset Modal Forms State
+     */
     const resetForm = () => {
         setFormData({ 
             title: '', 
@@ -426,7 +456,7 @@ const AdminDashboard = () => {
                         <div className="bg-zinc-900 p-5 rounded-2xl shadow-sm border border-zinc-800 flex items-center justify-between">
                             <div>
                                 <p className="text-zinc-500 text-xs font-bold uppercase tracking-wider mb-1">Total Revenue</p>
-                                <h3 className="text-2xl sm:text-3xl font-black text-emerald-400 font-sans">₹{analytics.totalRevenue}</h3>
+                                <h3 className="text-2xl sm:text-3xl font-semibold text-zinc-100 font-sans">₹{analytics.totalRevenue}</h3>
                             </div>
                             <div className="p-2 text-emerald-400 flex items-center justify-center shrink-0 select-none">
                                 <span className="material-symbols-outlined text-[32px]">payments</span>
@@ -435,7 +465,7 @@ const AdminDashboard = () => {
                         <div className="bg-zinc-900 p-5 rounded-2xl shadow-sm border border-zinc-800 flex items-center justify-between">
                             <div>
                                 <p className="text-zinc-500 text-xs font-bold uppercase tracking-wider mb-1">Paid Clients</p>
-                                <h3 className="text-2xl sm:text-3xl font-black text-indigo-400 font-sans">{analytics.confirmedPaidClientsCount}</h3>
+                                <h3 className="text-2xl sm:text-3xl font-semibold text-zinc-100 font-sans">{analytics.confirmedPaidClientsCount}</h3>
                             </div>
                             <div className="p-2 text-indigo-400 flex items-center justify-center shrink-0 select-none">
                                 <span className="material-symbols-outlined text-[32px]">group</span>
@@ -444,7 +474,7 @@ const AdminDashboard = () => {
                         <div className="bg-zinc-900 p-5 rounded-2xl shadow-sm border border-zinc-800 flex items-center justify-between">
                             <div>
                                 <p className="text-zinc-500 text-xs font-bold uppercase tracking-wider mb-1">Pending Requests</p>
-                                <h3 className="text-2xl sm:text-3xl font-black text-amber-500 font-sans">{analytics.pendingRequestsCount}</h3>
+                                <h3 className="text-2xl sm:text-3xl font-semibold text-zinc-100 font-sans">{analytics.pendingRequestsCount}</h3>
                             </div>
                             <div className="p-2 text-amber-500 flex items-center justify-center shrink-0 select-none">
                                 <span className="material-symbols-outlined text-[32px]">schedule</span>
@@ -453,7 +483,7 @@ const AdminDashboard = () => {
                         <div className="bg-zinc-900 p-5 rounded-2xl shadow-sm border border-zinc-800 flex items-center justify-between">
                             <div>
                                 <p className="text-zinc-500 text-xs font-bold uppercase tracking-wider mb-1">Live Events</p>
-                                <h3 className="text-2xl sm:text-3xl font-black text-blue-400 font-sans">
+                                <h3 className="text-2xl sm:text-3xl font-semibold text-zinc-100 font-sans">
                                     {events.filter(event => new Date(event.date).getTime() >= new Date().setHours(0, 0, 0, 0)).length}
                                 </h3>
                             </div>
@@ -463,77 +493,80 @@ const AdminDashboard = () => {
                         </div>
                     </div>
 
-                    {/* Centered vertical stack of wider line-chart cards */}
-                    <div className="flex flex-col gap-8 max-w-5xl mx-auto w-full">
+                    {/* Responsive grid displaying both charts side by side on desktop and tablet */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
                         {/* Occupancy line chart */}
-                        <div className="group relative overflow-hidden rounded-3xl bg-zinc-950 p-6 font-sans shadow-2xl border border-zinc-900 w-full">
+                        <div className="group relative overflow-hidden rounded-3xl bg-zinc-950 p-4 sm:p-5 font-sans shadow-2xl border border-zinc-900 w-full">
                             <div className="absolute -top-1/2 left-1/2 h-64 w-64 -translate-x-1/2 rounded-full bg-lime-500/10 blur-3xl transition-all duration-700 group-hover:bg-lime-500/15 pointer-events-none"></div>
 
-                            <div className="relative flex flex-col gap-5">
-                                <div className="flex items-start justify-between border-b border-zinc-800 pb-5">
-                                    <div className="flex items-center gap-3">
-                                        <div className="p-2 text-lime-400 flex items-center justify-center select-none">
-                                            <span className="material-symbols-outlined text-[24px]">analytics</span>
+                            <div className="relative flex flex-col gap-4">
+                                <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+                                    <div className="flex items-center gap-2">
+                                        <div className="p-1.5 text-lime-400 bg-lime-400/10 rounded-lg flex items-center justify-center select-none">
+                                            <span className="material-symbols-outlined text-[20px]">analytics</span>
                                         </div>
                                         <div>
-                                            <p className="font-semibold text-zinc-200">Seats Occupancy per Event</p>
-                                            <p className="text-xs text-zinc-500">Live booking statistics</p>
+                                            <p className="font-bold text-sm text-zinc-200">Seats Occupancy</p>
+                                            <p className="text-[10px] text-zinc-500">Live booking statistics</p>
                                         </div>
                                     </div>
+                                    <button
+                                        onClick={() => setActiveTab('bookings')}
+                                        className="rounded-lg border border-lime-400/20 bg-transparent px-2.5 py-1 text-xs font-semibold text-lime-400 transition-colors duration-300 hover:bg-lime-400 hover:text-zinc-950 flex items-center gap-1 shrink-0"
+                                    >
+                                        Manage <span className="material-symbols-outlined text-[10px]">arrow_forward</span>
+                                    </button>
                                 </div>
 
-                                <div className="flex divide-x divide-zinc-850">
-                                    <div className="flex-1 pr-6">
-                                        <p className="text-xs font-medium text-zinc-500">Booked Seats</p>
-                                        <p className="text-2xl font-bold text-zinc-100">{totalBooked}</p>
-                                        <p className="mt-1 text-xs font-medium text-lime-400">+{occupancyRate}% occupancy</p>
+                                <div className="grid grid-cols-2 gap-4 bg-zinc-900/40 p-3 rounded-xl border border-zinc-900">
+                                    <div>
+                                        <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Booked Seats</p>
+                                        <p className="text-xl font-extrabold text-zinc-100 mt-0.5">{totalBooked}</p>
+                                        <span className="text-[10px] font-semibold text-lime-400 bg-lime-500/10 px-1.5 py-0.5 rounded mt-1 inline-block">+{occupancyRate}% occupancy</span>
                                     </div>
-                                    <div className="flex-1 pl-6">
-                                        <p className="text-xs font-medium text-zinc-500">Available Seats</p>
-                                        <p className="text-2xl font-bold text-zinc-100">{totalAvailable}</p>
-                                        <p className="mt-1 text-xs font-medium text-zinc-400">{100 - occupancyRate}% capacity</p>
+                                    <div className="border-l border-zinc-800/85 pl-4">
+                                        <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Available Seats</p>
+                                        <p className="text-xl font-extrabold text-zinc-100 mt-0.5">{totalAvailable}</p>
+                                        <span className="text-[10px] font-semibold text-zinc-400 bg-zinc-500/10 px-1.5 py-0.5 rounded mt-1 inline-block">{100 - occupancyRate}% capacity</span>
                                     </div>
                                 </div>
 
-                                <div className="relative h-64 w-full">
+                                <div className="relative h-48 w-full">
                                     <Line 
                                         data={getOccupancyChartData()} 
                                         options={occupancyLineOptions} 
                                     />
                                 </div>
-
-                                <div className="border-t border-zinc-850 pt-5">
-                                    <button
-                                        onClick={() => setActiveTab('bookings')}
-                                        className="w-full rounded-lg border border-lime-400/50 bg-transparent px-4 py-2 text-sm font-medium text-lime-400 transition-colors duration-300 hover:bg-lime-400 hover:text-zinc-950 font-semibold"
-                                    >
-                                        Manage Event Bookings
-                                    </button>
-                                </div>
                             </div>
                         </div>
 
                         {/* Category distribution line chart */}
-                        <div className="group relative overflow-hidden rounded-3xl bg-zinc-950 p-6 font-sans shadow-2xl border border-zinc-900 w-full">
+                        <div className="group relative overflow-hidden rounded-3xl bg-zinc-950 p-4 sm:p-5 font-sans shadow-2xl border border-zinc-900 w-full">
                             <div className="absolute -top-1/2 left-1/2 h-64 w-64 -translate-x-1/2 rounded-full bg-indigo-500/10 blur-3xl transition-all duration-700 group-hover:bg-indigo-500/15 pointer-events-none"></div>
 
-                            <div className="relative flex flex-col gap-5">
-                                <div className="flex items-start justify-between border-b border-zinc-800 pb-5">
-                                    <div className="flex items-center gap-3">
-                                        <div className="p-2 text-indigo-400 flex items-center justify-center select-none">
-                                            <span className="material-symbols-outlined text-[24px]">category</span>
+                            <div className="relative flex flex-col gap-4">
+                                <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+                                    <div className="flex items-center gap-2">
+                                        <div className="p-1.5 text-indigo-400 bg-indigo-500/10 rounded-lg flex items-center justify-center select-none">
+                                            <span className="material-symbols-outlined text-[20px]">category</span>
                                         </div>
                                         <div>
-                                            <p className="font-semibold text-zinc-200">Event Categories Distribution</p>
-                                            <p className="text-xs text-zinc-500">Breakdown of published events by theme</p>
+                                            <p className="font-bold text-sm text-zinc-200">Event Categories</p>
+                                            <p className="text-[10px] text-zinc-500">Theme distribution</p>
                                         </div>
                                     </div>
+                                    <button
+                                        onClick={() => setActiveTab('events')}
+                                        className="rounded-lg border border-indigo-400/20 bg-transparent px-2.5 py-1 text-xs font-semibold text-indigo-400 transition-colors duration-300 hover:bg-indigo-400 hover:text-zinc-950 flex items-center gap-1 shrink-0"
+                                    >
+                                        Manage <span className="material-symbols-outlined text-[10px]">arrow_forward</span>
+                                    </button>
                                 </div>
 
-                                <div className="flex divide-x divide-zinc-850">
-                                    <div className="flex-1 pr-6">
-                                        <p className="text-xs font-medium text-zinc-500">Primary Category</p>
-                                        <p className="text-2xl font-bold text-zinc-100">
+                                <div className="grid grid-cols-2 gap-4 bg-zinc-900/40 p-3 rounded-xl border border-zinc-900">
+                                    <div>
+                                        <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Primary Category</p>
+                                        <p className="text-xl font-extrabold text-zinc-100 mt-0.5 truncate">
                                             {(() => {
                                                 const counts = {};
                                                 analytics.eventStats.forEach(e => {
@@ -546,31 +579,22 @@ const AdminDashboard = () => {
                                                 return entries[0][0];
                                             })()}
                                         </p>
-                                        <p className="mt-1 text-xs font-medium text-indigo-400">Most active category</p>
+                                        <span className="text-[10px] font-semibold text-indigo-400 bg-indigo-500/10 px-1.5 py-0.5 rounded mt-1 inline-block">Most active</span>
                                     </div>
-                                    <div className="flex-1 pl-6">
-                                        <p className="text-xs font-medium text-zinc-500">Distinct Categories</p>
-                                        <p className="text-2xl font-bold text-zinc-100">
+                                    <div className="border-l border-zinc-800/85 pl-4">
+                                        <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Distinct Categories</p>
+                                        <p className="text-xl font-extrabold text-zinc-100 mt-0.5">
                                             {new Set(analytics.eventStats.map(e => e.category || 'Other')).size}
                                         </p>
-                                        <p className="mt-1 text-xs font-medium text-zinc-400">Unique themes represented</p>
+                                        <span className="text-[10px] font-semibold text-zinc-400 bg-zinc-500/10 px-1.5 py-0.5 rounded mt-1 inline-block">Themes represented</span>
                                     </div>
                                 </div>
 
-                                <div className="relative h-64 w-full">
+                                <div className="relative h-48 w-full">
                                     <Line 
                                         data={getCategoryChartData()} 
                                         options={categoryLineOptions} 
                                     />
-                                </div>
-
-                                <div className="border-t border-zinc-850 pt-5">
-                                    <button
-                                        onClick={() => setActiveTab('events')}
-                                        className="w-full rounded-lg border border-indigo-400/50 bg-transparent px-4 py-2 text-sm font-medium text-indigo-400 transition-colors duration-300 hover:bg-indigo-400 hover:text-zinc-950 font-semibold"
-                                    >
-                                        Manage Events Catalog
-                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -805,8 +829,8 @@ const AdminDashboard = () => {
 
             {/* Create Event Modal */}
             {showCreateModal && (
-                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-zinc-900 rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden border border-zinc-800 max-h-[90vh] flex flex-col animation-scaleUp">
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-start justify-center p-4 pt-16 md:pt-24 overflow-y-auto animate-fadeIn">
+                    <div className="bg-zinc-900 rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden border border-zinc-800 flex flex-col animation-scaleUp my-8">
                         <div className="p-6 border-b border-zinc-850 flex items-center justify-between bg-zinc-950 shrink-0">
                             <h2 className="text-xl font-bold text-zinc-150">Create New Event</h2>
                             <button onClick={() => setShowCreateModal(false)} className="text-zinc-500 hover:text-zinc-300 flex items-center justify-center"><span className="material-symbols-outlined text-[20px] select-none">close</span></button>
@@ -901,8 +925,8 @@ const AdminDashboard = () => {
 
             {/* Edit Event Modal */}
             {showEditModal && (
-                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-zinc-900 rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden border border-zinc-800 max-h-[90vh] flex flex-col animation-scaleUp">
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-start justify-center p-4 pt-16 md:pt-24 overflow-y-auto animate-fadeIn">
+                    <div className="bg-zinc-900 rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden border border-zinc-800 flex flex-col animation-scaleUp my-8">
                         <div className="p-6 border-b border-zinc-850 flex items-center justify-between bg-zinc-950 shrink-0">
                             <h2 className="text-xl font-bold text-zinc-150">Edit Event Details</h2>
                             <button onClick={() => setShowEditModal(false)} className="text-zinc-500 hover:text-zinc-300 flex items-center justify-center"><span className="material-symbols-outlined text-[20px] select-none">close</span></button>

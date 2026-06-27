@@ -3,12 +3,23 @@ const dotenv = require('dotenv');
 
 dotenv.config();
 
+// Cached transporter instance to reuse across multiple email send requests
 let transporter;
 
-// Create transporter helper that resolves SMTP or falls back to console logger/Ethereal
+/**
+ * Get Transporter Helper
+ * 
+ * Sets up the Nodemailer email sending mechanism. Follows a fallback tree:
+ * 1. Checks if production GMail credentials (EMAIL_USER, EMAIL_PASS) exist and initializes SMTP.
+ * 2. If absent, attempts to generate an Ethereal SMTP test account for development log checking.
+ * 3. If generation fails (offline/network timeout), falls back to print-only console logging.
+ * 
+ * @returns {Object} Nodemailer transporter instance or mock console logger object
+ */
 const getTransporter = async () => {
     if (transporter) return transporter;
 
+    // 1. SMTP Transporter config using GMail credentials
     if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
         transporter = nodemailer.createTransport({
             service: 'gmail',
@@ -21,7 +32,7 @@ const getTransporter = async () => {
         return transporter;
     }
 
-    // Fallback to ethereal if no Gmail user/pass is configured
+    // 2. Fallback to Ethereal developer test SMTP accounts
     try {
         const testAccount = await nodemailer.createTestAccount();
         transporter = nodemailer.createTransport({
@@ -37,6 +48,7 @@ const getTransporter = async () => {
         console.log(`Ethereal credentials: User: ${testAccount.user}, Pass: ${testAccount.pass}`);
         return transporter;
     } catch (err) {
+        // 3. Last fallback: Safe offline console printer
         console.log('Nodemailer: Failed to initialize Ethereal. Falling back to console-only logging.');
         transporter = {
             sendMail: async (options) => {
@@ -44,7 +56,7 @@ const getTransporter = async () => {
                 console.log('MOCK EMAIL SENDING (CONSOLE FALLBACK):');
                 console.log(`To: ${options.to}`);
                 console.log(`Subject: ${options.subject}`);
-                console.log(`Content:\n${options.html.replace(/<[^>]*>/g, '')}`); // Strip simple html tags
+                console.log(`Content:\n${options.html.replace(/<[^>]*>/g, '')}`); // Remove HTML tags for clean console view
                 console.log('==================================================');
                 return { messageId: 'mock-id' };
             }
@@ -53,6 +65,13 @@ const getTransporter = async () => {
     }
 };
 
+/**
+ * Dispatch Booking Confirmation Email
+ * 
+ * @param {string} userEmail Attendee target email
+ * @param {string} userName Attendee display name
+ * @param {string} eventTitle Booked event name
+ */
 const sendBookingEmail = async (userEmail, userName, eventTitle) => {
     try {
         const tx = await getTransporter();
@@ -77,6 +96,13 @@ const sendBookingEmail = async (userEmail, userName, eventTitle) => {
     }
 };
 
+/**
+ * Dispatch Verification OTP Code
+ * 
+ * @param {string} userEmail Target user email
+ * @param {string} otp 6-digit verification code
+ * @param {string} type Verification type ('account_verification' | 'event_booking')
+ */
 const sendOTPEmail = async (userEmail, otp, type) => {
     try {
         const tx = await getTransporter();
@@ -104,6 +130,7 @@ const sendOTPEmail = async (userEmail, otp, type) => {
         console.log(`\n=========================================`);
         console.log(`[OTP SENT] To: ${userEmail} | Code: ${otp} | Type: ${type}`);
         console.log(`=========================================\n`);
+        
         if (info.messageId && nodemailer.getTestMessageUrl) {
             const url = nodemailer.getTestMessageUrl(info);
             if (url) console.log(`Ethereal OTP Email Link: ${url}`);

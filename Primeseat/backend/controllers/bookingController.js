@@ -3,41 +3,66 @@ const Event = require('../models/Event');
 const OTP = require('../models/OTP');
 const { sendBookingEmail, sendOTPEmail } = require('../utils/email');
 
+/**
+ * Helper: Generate a secure 6-digit verification code
+ * @returns {string} 6-digit numeric string
+ */
 const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
 
-// User triggers OTP to authorize their booking
+/**
+ * Generate and Send OTP for Event Booking Authorization (2FA)
+ * 
+ * Generates a temporary 6-digit OTP code, stores it in the database with an 
+ * active "event_booking" action type, and sends it to the user's email.
+ * This ensures that only users with verified email access can place bookings.
+ */
 exports.sendBookingOTP = async (req, res) => {
     try {
         const otp = generateOTP();
+        
+        // Remove any prior pending booking OTP requests from this email to prevent spam/collisions
         await OTP.findOneAndDelete({ email: req.user.email, action: 'event_booking' });
+        
+        // Create the new OTP record (has a 2-minute time-to-live TTL via mongoose schema index)
         await OTP.create({ email: req.user.email, otp, action: 'event_booking' });
+        
+        // Email the OTP code to the client
         await sendOTPEmail(req.user.email, otp, 'event_booking');
+        
         res.json({ message: 'OTP sent successfully' });
     } catch (error) {
         res.status(500).json({ message: 'Error sending OTP', error: error.message });
     }
 };
 
-// User creates booking using the OTP
+/**
+ * Place a New Event Booking Request
+ * 
+ * Validates the user's 2FA OTP, checks seat availability, detects duplicate 
+ * pending/confirmed registrations, and records the booking request as "pending".
+ */
 exports.bookEvent = async (req, res) => {
     try {
         const { eventId, otp } = req.body;
 
-        // Verify OTP explicitly before proceeding (valid for 2 minutes as configured in model TTL)
+        // 1. Validate that the OTP provided matches the user's current session and is not expired
         const validOTP = await OTP.findOne({ email: req.user.email, otp, action: 'event_booking' });
         if (!validOTP) {
             return res.status(400).json({ message: 'Invalid or expired OTP for booking' });
         }
 
+        // 2. Retrieve the event and confirm active capacity
         const event = await Event.findById(eventId);
         if (!event) return res.status(404).json({ message: 'Event not found' });
         if (event.availableSeats <= 0) return res.status(400).json({ message: 'No seats available' });
 
+        // 3. Prevent duplicate active booking entries
         const existingBooking = await Booking.findOne({ userId: req.user.id, eventId });
         if (existingBooking && existingBooking.status !== 'cancelled' && existingBooking.status !== 'rejected') {
             return res.status(400).json({ message: 'Already booked or pending request exists' });
         }
 
+        // 4. Create the booking entry in a pending, unpaid state
         const booking = await Booking.create({
             userId: req.user.id,
             eventId,
@@ -46,7 +71,8 @@ exports.bookEvent = async (req, res) => {
             amount: event.ticketPrice
         });
 
-        await OTP.deleteOne({ _id: validOTP._id }); // cleanup
+        // 5. Clean up the consumed OTP from database
+        await OTP.deleteOne({ _id: validOTP._id });
 
         res.status(201).json({ message: 'Booking request submitted successfully', booking });
     } catch (error) {
@@ -54,17 +80,25 @@ exports.bookEvent = async (req, res) => {
     }
 };
 
-// Admin updates booking status (Confirm/Reject/Pending) - independent of payment status
+/**
+ * Admin: Update Booking Reservation Status (Confirm / Reject / Pending)
+ * 
+ * Modifies the event ticket reservation state independently of the payment state.
+ * Decrements the event's availableSeats when confirming a ticket, and restores 
+ * the seat back to the catalog if a confirmed booking is set to a non-confirmed state.
+ */
 exports.updateBookingStatus = async (req, res) => {
     try {
-        const { status } = req.body; // 'confirmed', 'rejected', 'pending'
+        const { status } = req.body; // Allowed values: 'confirmed', 'rejected', 'pending'
         if (!['confirmed', 'rejected', 'pending'].includes(status)) {
             return res.status(400).json({ message: 'Invalid status type' });
         }
 
+        // Retrieve the target booking, fetching nested event and user details
         const booking = await Booking.findById(req.params.id).populate('userId').populate('eventId');
         if (!booking) return res.status(404).json({ message: 'Booking not found' });
 
+        // Short-circuit if no actual status transition is occurring
         if (booking.status === status) {
             return res.json({ message: `Booking status is already ${status}`, booking });
         }
@@ -73,19 +107,19 @@ exports.updateBookingStatus = async (req, res) => {
         const event = await Event.findById(booking.eventId._id);
         if (!event) return res.status(404).json({ message: 'Associated event not found' });
 
-        // Seat management logic
+        // Manage inventory capacity updates
         if (status === 'confirmed') {
-            // Check capacity only if we are confirming a previously non-confirmed booking
+            // Guarantee seat availability prior to confirmation
             if (event.availableSeats <= 0) {
                 return res.status(400).json({ message: 'No seats available to confirm this booking' });
             }
             event.availableSeats -= 1;
             await event.save();
 
-            // Send confirmation email
+            // Dispatch confirmation receipt email to the attendee
             await sendBookingEmail(booking.userId.email, booking.userId.name, booking.eventId.title);
         } else if (oldStatus === 'confirmed' && status !== 'confirmed') {
-            // Releasing the seat if changing from confirmed to rejected/pending/cancelled
+            // Relinquish seats if transitioning away from confirmed status
             event.availableSeats = Math.min(event.availableSeats + 1, event.totalSeats);
             await event.save();
         }
@@ -99,10 +133,15 @@ exports.updateBookingStatus = async (req, res) => {
     }
 };
 
-// Admin updates payment status ('paid' / 'not_paid') - independent of booking status
+/**
+ * Admin: Update Booking Payment Status (Paid / Not Paid)
+ * 
+ * Modifies payment states independently of the reservation status. 
+ * Allows administrative accounting tracking for manual or gate-based checkouts.
+ */
 exports.updatePaymentStatus = async (req, res) => {
     try {
-        const { paymentStatus } = req.body; // 'paid', 'not_paid'
+        const { paymentStatus } = req.body; // Allowed values: 'paid', 'not_paid'
         if (!['paid', 'not_paid'].includes(paymentStatus)) {
             return res.status(400).json({ message: 'Invalid payment status type' });
         }
@@ -119,63 +158,39 @@ exports.updatePaymentStatus = async (req, res) => {
     }
 };
 
-// Legacy method maintained for frontend compatibility, sets status to confirmed and handles payment status if passed
-exports.confirmBooking = async (req, res) => {
-    try {
-        const { paymentStatus } = req.body; // 'paid' or 'not_paid'
-        const booking = await Booking.findById(req.params.id).populate('userId').populate('eventId');
-        if (!booking) return res.status(404).json({ message: 'Booking not found' });
-
-        if (booking.status === 'confirmed') {
-            if (paymentStatus) {
-                booking.paymentStatus = paymentStatus;
-                await booking.save();
-            }
-            return res.json({ message: 'Booking is already confirmed', booking });
-        }
-
-        const event = await Event.findById(booking.eventId._id);
-        if (event.availableSeats <= 0) {
-            return res.status(400).json({ message: 'No seats available to confirm this booking' });
-        }
-
-        booking.status = 'confirmed';
-        if (paymentStatus) {
-            booking.paymentStatus = paymentStatus;
-        }
-        await booking.save();
-
-        event.availableSeats -= 1;
-        await event.save();
-
-        // Send email on admin confirmation
-        await sendBookingEmail(booking.userId.email, booking.userId.name, booking.eventId.title);
-
-        res.json({ message: 'Booking confirmed successfully', booking });
-    } catch (error) {
-        res.status(500).json({ message: 'Server Error', error: error.message });
-    }
-};
-
-// Retrieve bookings (Admin gets all, User gets only their own)
+/**
+ * Fetch Bookings List
+ * 
+ * Returns all system bookings sorted by date (newest first) if the requester 
+ * is an Admin. Standard users receive only booking requests initiated by themselves.
+ */
 exports.getMyBookings = async (req, res) => {
     try {
         const bookings = req.user.role === 'admin'
             ? await Booking.find().populate('eventId').populate('userId', 'name email').sort({ createdAt: -1 })
             : await Booking.find({ userId: req.user.id }).populate('eventId').sort({ createdAt: -1 });
-        res.json(bookings);
+        
+        // Filter out bookings whose referenced event or user details have been deleted
+        const validBookings = bookings.filter(booking => booking.eventId && booking.userId);
+        
+        res.json(validBookings);
     } catch (error) {
         res.status(500).json({ message: 'Server Error', error: error.message });
     }
 };
 
-// Cancel a booking request (restores seat if booking was confirmed)
+/**
+ * Cancel a Booking
+ * 
+ * Cancels a ticket request. If the booking was previously confirmed, it restores 
+ * the held ticket/seat capacity back to the associated event.
+ */
 exports.cancelBooking = async (req, res) => {
     try {
         const booking = await Booking.findById(req.params.id);
         if (!booking) return res.status(404).json({ message: 'Booking not found' });
         
-        // Authorization check
+        // Ensure standard users can only cancel their own bookings, while Admins bypass
         if (booking.userId.toString() !== req.user.id && req.user.role !== 'admin') {
             return res.status(403).json({ message: 'Not authorized to cancel this booking' });
         }
@@ -186,7 +201,7 @@ exports.cancelBooking = async (req, res) => {
         booking.status = 'cancelled';
         await booking.save();
 
-        // Release seats if confirmed
+        // Release holds on confirmed ticket seats to keep inventory accurate
         if (wasConfirmed) {
             const event = await Event.findById(booking.eventId);
             if (event) {

@@ -4,12 +4,23 @@ import api from '../utils/axios';
 import { Link, useNavigate } from 'react-router-dom';
 import Loading from '../components/Loading';
 
+/**
+ * UserDashboard View Component
+ * 
+ * Displays the authenticated client's booking requests, including statuses 
+ * (pending, confirmed, cancelled, rejected) and payment states (paid, not_paid).
+ * Includes an option to self-cancel pending booking requests.
+ */
 const UserDashboard = () => {
+    // Auth context session state
     const { user } = useContext(AuthContext);
     const navigate = useNavigate();
+
+    // Local dashboard states
     const [bookings, setBookings] = useState([]);
     const [loading, setLoading] = useState(true);
 
+    // Enforce dashboard route guards
     useEffect(() => {
         if (!user) {
             navigate('/login');
@@ -18,6 +29,9 @@ const UserDashboard = () => {
         fetchBookings();
     }, [user, navigate]);
 
+    /**
+     * Query User Booking Records
+     */
     const fetchBookings = async () => {
         try {
             const { data } = await api.get('/bookings/my');
@@ -29,10 +43,17 @@ const UserDashboard = () => {
         }
     };
 
+    /**
+     * Cancel Booking Request
+     * 
+     * Releases seat holds if the booking was confirmed and updates status to cancelled.
+     * @param {string} id Booking record ID
+     */
     const cancelBooking = async (id) => {
         if (window.confirm('Are you sure you want to cancel this booking request?')) {
             try {
                 await api.delete(`/bookings/${id}`);
+                // Refresh local listings
                 fetchBookings();
             } catch (error) {
                 alert(error.response?.data?.message || 'Error cancelling booking');
@@ -44,7 +65,7 @@ const UserDashboard = () => {
 
     return (
         <div className="max-w-6xl mx-auto">
-            {/* User welcome card */}
+            {/* User Greeting Block */}
             <div className="bg-zinc-900 rounded-3xl p-6 sm:p-8 mb-8 border border-zinc-800 flex flex-col sm:flex-row items-center sm:items-start text-center sm:text-left gap-4 sm:gap-6 shadow-md relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-48 h-48 bg-indigo-500/5 rounded-full blur-3xl"></div>
                 <div className="w-20 h-20 bg-zinc-800 text-zinc-100 border border-zinc-700 rounded-full flex items-center justify-center text-3xl font-extrabold uppercase tracking-widest shrink-0 shadow-md">
@@ -58,15 +79,17 @@ const UserDashboard = () => {
                 </div>
             </div>
 
+            {/* Bookings Section Header */}
             <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl sm:text-2xl font-bold text-zinc-100 flex items-center gap-2 sm:gap-3">
                     <span className="material-symbols-outlined text-zinc-500 text-2xl align-middle select-none">confirmation_number</span> My Booking Requests
                 </h2>
             </div>
 
+            {/* Bookings Grid viewport */}
             {bookings.length === 0 ? (
                 <div className="bg-zinc-900 rounded-3xl p-16 text-center border border-zinc-800 shadow-md">
-                    <div className="p-5 text-zinc-650 flex items-center justify-center mx-auto mb-4 select-none">
+                    <div className="p-5 text-zinc-655 flex items-center justify-center mx-auto mb-4 select-none">
                         <span className="material-symbols-outlined text-[48px]">confirmation_number</span>
                     </div>
                     <h3 className="text-xl text-zinc-200 font-bold mb-2">No bookings yet</h3>
@@ -82,9 +105,11 @@ const UserDashboard = () => {
                             <div className="p-6 flex-grow">
                                 {booking.eventId ? (
                                     <>
+                                        {/* Event title and status tags */}
                                         <div className="flex justify-between items-start mb-4 gap-4">
                                             <h3 className="text-lg font-bold text-zinc-100 leading-tight">{booking.eventId.title}</h3>
                                             <div className="flex flex-col gap-1.5 items-end shrink-0">
+                                                {/* Independent reservation status badge */}
                                                 <span className={`px-2.5 py-1 text-[9px] font-black rounded-lg uppercase tracking-wider border ${
                                                     booking.status === 'confirmed' ? 'bg-emerald-950/40 text-emerald-400 border-emerald-900/30' :
                                                     booking.status === 'cancelled' ? 'bg-red-950/40 text-red-400 border-red-900/30' :
@@ -93,6 +118,7 @@ const UserDashboard = () => {
                                                 }`}>
                                                     {booking.status}
                                                 </span>
+                                                {/* Independent payment status badge */}
                                                 {booking.status !== 'cancelled' && (
                                                     <span className={`px-2.5 py-1 text-[9px] font-black rounded-lg uppercase tracking-wider border ${
                                                         booking.paymentStatus === 'paid' ? 'bg-blue-950/40 text-blue-400 border-blue-900/30' : 
@@ -103,6 +129,7 @@ const UserDashboard = () => {
                                                 )}
                                             </div>
                                         </div>
+                                        {/* Structured Details Info box */}
                                         <div className="text-sm text-zinc-400 mb-2 space-y-1.5 bg-zinc-950/30 p-3 rounded-2xl border border-zinc-850">
                                             <p className="flex justify-between"><span className="text-zinc-550 font-bold uppercase text-[10px]">Date:</span> <span className="font-semibold text-zinc-300">{new Date(booking.eventId.date).toLocaleDateString()}</span></p>
                                             <p className="flex justify-between"><span className="text-zinc-550 font-bold uppercase text-[10px]">Amount:</span> <span className={`font-bold ${booking.amount === 0 ? 'text-emerald-400' : 'text-zinc-200'}`}>{booking.amount === 0 ? 'Free' : `₹${booking.amount}`}</span></p>
@@ -112,8 +139,10 @@ const UserDashboard = () => {
                                 ) : (
                                     <p className="text-red-400 italic text-sm">Event details unavailable (might have been deleted)</p>
                                 )}
-                            </div>
-                            <div className="p-4 bg-zinc-950/50 border-t border-zinc-800/80 flex justify-between items-center shrink-0">
+                             </div>
+                             
+                             {/* Bottom actions row */}
+                             <div className="p-4 bg-zinc-950/50 border-t border-zinc-800/80 flex justify-between items-center shrink-0">
                                 {booking.eventId && booking.status !== 'cancelled' ? (
                                     <>
                                         <Link to={`/events/${booking.eventId._id}`} className="text-indigo-400 hover:text-indigo-300 font-bold text-sm transition hover:underline">View Event</Link>
@@ -127,7 +156,7 @@ const UserDashboard = () => {
                                 ) : (
                                     <div className="w-full text-center text-xs text-zinc-500 italic font-semibold">Booking Cancelled</div>
                                 )}
-                            </div>
+                             </div>
                         </div>
                     ))}
                 </div>

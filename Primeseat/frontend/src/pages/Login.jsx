@@ -2,7 +2,15 @@ import React, { useState, useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
 
+/**
+ * Login View Page Component
+ * 
+ * Renders the sign-in form supporting traditional email/password credentials 
+ * and handles the redirection workflow to trigger a 2FA OTP prompt when 
+ * registering or logging into unverified accounts.
+ */
 const Login = () => {
+    // Form and interface state management
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [otp, setOtp] = useState('');
@@ -10,24 +18,31 @@ const Login = () => {
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
 
+    // Grab authentication handlers from context
     const { login, verifyOTP } = useContext(AuthContext);
     const navigate = useNavigate();
 
+    /**
+     * Submit Handler for Credentials / OTP Verification
+     */
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
         setError('');
         try {
             if (!showOTP) {
+                // Phase 1: Try authenticating email and password
                 const data = await login(email, password);
                 if (data.role === 'admin') navigate('/admin');
                 else navigate('/dashboard');
             } else {
+                // Phase 2: User account requires verification. Try validating OTP code
                 const data = await verifyOTP(email, otp);
                 if (data.role === 'admin') navigate('/admin');
                 else navigate('/dashboard');
             }
         } catch (err) {
+            // Handle active unverified account warning by showing the OTP input page
             if (err.needsVerification) {
                 setShowOTP(true);
                 setError('Account not verified. A new OTP has been sent to your email.');
@@ -51,6 +66,7 @@ const Login = () => {
             <form onSubmit={handleSubmit} className="space-y-5">
                 {!showOTP ? (
                     <>
+                        {/* Email input field */}
                         <div className="flex flex-col gap-1.5">
                             <label className="text-xs font-bold uppercase tracking-wider text-zinc-500">Email Address</label>
                             <input
@@ -62,6 +78,7 @@ const Login = () => {
                                 onChange={(e) => setEmail(e.target.value)}
                             />
                         </div>
+                        {/* Password input field */}
                         <div className="flex flex-col gap-1.5">
                             <label className="text-xs font-bold uppercase tracking-wider text-zinc-500">Password</label>
                             <input
@@ -75,6 +92,7 @@ const Login = () => {
                         </div>
                     </>
                 ) : (
+                    /* OTP verification field */
                     <div className="flex flex-col gap-1.5">
                         <label className="text-xs font-bold uppercase tracking-wider text-zinc-500">Verification Code (OTP)</label>
                         <input
@@ -88,6 +106,7 @@ const Login = () => {
                         />
                     </div>
                 )}
+                
                 <button
                     type="submit"
                     disabled={loading}

@@ -2,7 +2,14 @@ import React, { useState, useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
 
+/**
+ * Register View Page Component
+ * 
+ * Renders the sign-up fields, hashes password via backend, generates 
+ * OTP codes, and triggers the account activation screen.
+ */
 const Register = () => {
+    // Form and transaction state management
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -11,19 +18,25 @@ const Register = () => {
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
 
+    // Context auth variables
     const { register, verifyOTP } = useContext(AuthContext);
     const navigate = useNavigate();
 
+    /**
+     * Submit Handler for Registration / OTP Activation
+     */
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
         setError('');
         try {
             if (!showOTP) {
+                // Phase 1: Request account creation and trigger verification email dispatch
                 await register(name, email, password);
                 setShowOTP(true);
                 setError('');
             } else {
+                // Phase 2: User provides OTP to activate account and verify email
                 await verifyOTP(email, otp);
                 navigate('/login');
             }
@@ -46,6 +59,7 @@ const Register = () => {
             <form onSubmit={handleSubmit} className="space-y-5">
                 {!showOTP ? (
                     <>
+                        {/* Name input */}
                         <div className="flex flex-col gap-1.5">
                             <label className="text-xs font-bold uppercase tracking-wider text-zinc-500">Full Name</label>
                             <input
@@ -57,6 +71,7 @@ const Register = () => {
                                 onChange={(e) => setName(e.target.value)}
                             />
                         </div>
+                        {/* Email input */}
                         <div className="flex flex-col gap-1.5">
                             <label className="text-xs font-bold uppercase tracking-wider text-zinc-500">Email Address</label>
                             <input
@@ -68,6 +83,7 @@ const Register = () => {
                                 onChange={(e) => setEmail(e.target.value)}
                             />
                         </div>
+                        {/* Password input */}
                         <div className="flex flex-col gap-1.5">
                             <label className="text-xs font-bold uppercase tracking-wider text-zinc-500">Password</label>
                             <input
@@ -81,6 +97,7 @@ const Register = () => {
                         </div>
                     </>
                 ) : (
+                    /* Account verification view */
                     <div className="space-y-4">
                         <p className="text-sm text-emerald-450 bg-emerald-950/20 p-3.5 rounded-xl border border-emerald-900/30">
                             An OTP has been sent to your email. Please verify your account.

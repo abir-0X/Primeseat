@@ -3,22 +3,37 @@ import { Link } from 'react-router-dom';
 import api from '../utils/axios';
 import Loading from '../components/Loading';
 
-
+/**
+ * Home View Page Component
+ * 
+ * Renders the landing page containing a hero search banner, a horizontal 
+ * scrolling catalog of upcoming events, features columns, and a footer.
+ */
 const Home = () => {
+    // State management for event listings, user search keywords, and loading indicators
     const [events, setEvents] = useState([]);
     const [search, setSearch] = useState('');
     const [loading, setLoading] = useState(true);
+    
+    // Ref reference to the horizontal scrolling container
     const scrollContainerRef = useRef(null);
 
+    /**
+     * Horizontal Scroll Utility
+     * Scrolls the event list snapshot horizontally by exactly one card width + gap.
+     * 
+     * @param {string} direction 'left' | 'right'
+     */
     const handleScroll = (direction) => {
         const container = scrollContainerRef.current;
         if (container && container.firstChild) {
-            const cardWidth = container.firstChild.offsetWidth + 24; // Card width + gap
+            const cardWidth = container.firstChild.offsetWidth + 24; // Card width + gap size
             const scrollAmount = direction === 'left' ? -cardWidth : cardWidth;
             container.scrollBy({ left: scrollAmount, behavior: 'smooth' });
         }
     };
 
+    // Effect hook to run search actions with a 400ms debounce buffer to prevent API spamming
     useEffect(() => {
         const timeoutId = setTimeout(() => {
             fetchEvents();
@@ -26,9 +41,13 @@ const Home = () => {
         return () => clearTimeout(timeoutId);
     }, [search]);
 
+    /**
+     * Query Active Events Catalog
+     * Resolves only upcoming events in reverse chronological creation order.
+     */
     const fetchEvents = async () => {
         try {
-            const { data } = await api.get(`/events?search=${search}`);
+            const { data } = await api.get(`/events?search=${search}&upcoming=true&sort=latest`);
             setEvents(data);
         } catch (error) {
             console.error('Error fetching events:', error);
@@ -39,7 +58,7 @@ const Home = () => {
 
     return (
         <div className="flex flex-col min-h-screen">
-            {/* Hero Section */}
+            {/* Hero Banner Section */}
             <div className="relative bg-zinc-950 text-white rounded-3xl overflow-hidden mb-12 shadow-2xl border border-zinc-900">
                 <div className="absolute inset-0 opacity-20 bg-[url('https://images.unsplash.com/photo-1459749411175-04bf5292ceea?q=80&w=3000&auto=format&fit=crop')] bg-cover bg-center"></div>
                 <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/90 to-transparent"></div>
@@ -52,6 +71,7 @@ const Home = () => {
                         Discover the best tech conferences, late-night music festivals, and hands-on workshops happening directly in your area. Secure your spot today.
                     </p>
 
+                    {/* Interactive search bar input */}
                     <div className="w-full max-w-2xl mx-auto relative flex items-center shadow-2xl group z-10">
                         <input
                             type="text"
@@ -65,18 +85,20 @@ const Home = () => {
                 </div>
             </div>
 
-            {/* Upcoming Events Section */}
+            {/* Upcoming Events Catalog title row */}
             <div className="flex items-center justify-between mb-8 px-2 border-b border-zinc-800 pb-4">
                 <h2 className="text-3xl font-extrabold text-zinc-100">Upcoming Events</h2>
                 <div className="text-zinc-400 font-medium">{events.length} results found</div>
             </div>
 
+            {/* Catalog Grid Viewport */}
             {loading ? (
                 <Loading message="Loading events..." />
             ) : events.length === 0 ? (
                 <div className="text-center py-20 text-xl text-zinc-400">No events found matching your search.</div>
             ) : (
                 <>
+                    {/* Horizontal scroll listing container */}
                     <div 
                         ref={scrollContainerRef}
                         className="flex gap-6 overflow-x-auto pb-6 scroll-smooth snap-x snap-mandatory scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent"
@@ -86,6 +108,7 @@ const Home = () => {
                                 key={event._id} 
                                 className="bg-zinc-900/60 rounded-3xl overflow-hidden shadow-md border border-zinc-800 hover:border-zinc-700/80 hover:shadow-lg hover:shadow-indigo-500/5 hover:-translate-y-1 transition duration-300 flex flex-col min-w-[285px] w-full sm:w-[calc(50%-12px)] md:w-[calc(33.333%-16px)] lg:w-[calc(25%-18px)] shrink-0 snap-start"
                             >
+                                {/* Event Image container */}
                                 <div className="h-48 bg-zinc-850 overflow-hidden relative">
                                     {event.image ? (
                                         <>
@@ -98,6 +121,7 @@ const Home = () => {
                                                     e.target.nextSibling.style.display = 'flex';
                                                 }}
                                             />
+                                            {/* Fallback theme indicator if image URL is broken */}
                                             <div className="hidden w-full h-full flex items-center justify-center bg-zinc-850 text-zinc-400 font-bold text-2xl uppercase tracking-wider">
                                                 {event.category || 'Event'}
                                             </div>
@@ -111,6 +135,8 @@ const Home = () => {
                                         {event.ticketPrice === 0 ? <span className="text-emerald-400">FREE</span> : <span className="text-zinc-100">₹{event.ticketPrice}</span>}
                                     </div>
                                 </div>
+                                
+                                {/* Info block */}
                                 <div className="p-6 flex-grow flex flex-col">
                                     <div className="text-xs font-bold text-indigo-400 uppercase tracking-wider mb-2">{event.category}</div>
                                     <h2 className="text-xl font-bold text-zinc-100 mb-3">{event.title}</h2>
@@ -124,6 +150,8 @@ const Home = () => {
                                             <span>{event.location}</span>
                                         </div>
                                     </div>
+                                    
+                                    {/* Event Capacity indicator progress bar */}
                                     <div className="mt-auto">
                                         <div className="w-full bg-zinc-800 rounded-full h-2 mb-2">
                                             <div className="bg-indigo-600 h-2 rounded-full" style={{ width: `${(event.availableSeats / event.totalSeats) * 100}%` }}></div>
@@ -138,7 +166,7 @@ const Home = () => {
                         ))}
                     </div>
 
-                    {/* Navigation Arrows for scroll */}
+                    {/* Navigation arrow buttons for list scrolling */}
                     <div className="flex justify-center items-center gap-4 mt-6">
                         <button 
                             type="button"
@@ -160,10 +188,10 @@ const Home = () => {
                 </>
             )}
 
-            {/* Solid Divider with more spacing */}
+            {/* Divider line */}
             <div className="w-full border-t border-zinc-800/80 my-20"></div>
 
-            {/* Why Choose Us / Features row */}
+            {/* Pitch/Features Section Grid */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16 px-4">
                 <div className="bg-zinc-900/60 p-8 rounded-3xl shadow-sm border border-zinc-800/80 flex flex-col items-center text-center hover:border-zinc-700/80 hover:-translate-y-1 transition duration-300">
                     <div className="p-4 text-indigo-400 flex items-center justify-center mb-4 select-none">
@@ -188,15 +216,12 @@ const Home = () => {
                 </div>
             </div>
 
-            {/* Footer Section */}
+            {/* Footer */}
             <footer className="mt-auto pt-16 pb-8 border-t border-zinc-900 text-center">
                 <div className="flex justify-center items-center gap-2 mb-4">
                     <span className="material-symbols-outlined text-indigo-500 text-2xl select-none">confirmation_number</span>
                     <span className="text-xl font-bold text-zinc-100">Primeseat</span>
                 </div>
-                <p className="text-zinc-400 text-sm mb-6 max-w-md mx-auto leading-relaxed">
-                    The simplest, most dynamic way to manage, discover, and host world-class events in your local city. Let's make memories together.
-                </p>
                 <div className="text-xs text-zinc-500 font-medium uppercase tracking-wider">
                     &copy; {new Date().getFullYear()} Primeseat Platform. All rights reserved.
                 </div>

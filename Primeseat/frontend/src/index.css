@@ -1,3 +1,5 @@
+
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -9,8 +11,34 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: #09090b; /* zinc-950 */
+  background-color: #09090b; /* Restored blackish background */
+  background-image: 
+    radial-gradient(at 50% 0%, rgba(139, 92, 246, 0.2) 0, transparent 55%), /* Unforgettable premium purplish top glow */
+    radial-gradient(at 50% 50%, rgba(99, 102, 241, 0.05) 0, transparent 50%);
+  background-attachment: fixed;
   color: #f4f4f5; /* zinc-100 */
+}
+
+/* Global Glassmorphic Card Styling for div and section containers */
+div.bg-zinc-900,
+div.bg-zinc-900\/60,
+div.bg-zinc-950,
+div.bg-zinc-950\/60,
+div.bg-zinc-950\/80,
+section.bg-zinc-900,
+section.bg-zinc-950 {
+  background-color: rgba(15, 11, 28, 0.45) !important; /* Premium dark violet glass tint */
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.25) !important;
+}
+
+/* Hover border adjustments for glass cards */
+.hover\:border-zinc-700\/80:hover,
+.hover\:border-zinc-700:hover,
+.hover\:border-zinc-800:hover {
+  border-color: rgba(255, 255, 255, 0.15) !important;
 }
 
 /* Custom dark scrollbar styling */

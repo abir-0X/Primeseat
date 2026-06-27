@@ -4,11 +4,23 @@ import api from '../utils/axios';
 import Loading from '../components/Loading';
 import { AuthContext } from '../context/AuthContext';
 
-
+/**
+ * EventDetail View Page Component
+ * 
+ * Renders the detail view of a single event. If authenticated, standard users 
+ * can initiate a 2-step booking workflow:
+ * 1. Request OTP (dispatched to email).
+ * 2. Validate OTP code to confirm booking.
+ */
 const EventDetail = () => {
+    // Route url parameters
     const { id } = useParams();
     const navigate = useNavigate();
+    
+    // Auth context session state
     const { user } = useContext(AuthContext);
+    
+    // Page local states
     const [event, setEvent] = useState(null);
     const [loading, setLoading] = useState(true);
     const [bookingLoading, setBookingLoading] = useState(false);
@@ -17,6 +29,7 @@ const EventDetail = () => {
     const [error, setError] = useState('');
     const [successMsg, setSuccessMsg] = useState('');
 
+    // Query event metadata on mount and update when id changes
     useEffect(() => {
         const fetchEvent = async () => {
             try {
@@ -31,7 +44,15 @@ const EventDetail = () => {
         fetchEvent();
     }, [id]);
 
+    /**
+     * Booking Request Handler
+     * 
+     * Directs the 2FA state machine. 
+     * - Phase 1: Calls `/bookings/send-otp` to dispatch code.
+     * - Phase 2: Submits event booking request with target event ID and validation OTP.
+     */
     const handleBooking = async () => {
+        // Enforce user authentication redirects
         if (!user) {
             navigate('/login');
             return;
@@ -42,14 +63,17 @@ const EventDetail = () => {
 
         try {
             if (!showOTP) {
+                // Phase 1: Request verification email
                 await api.post('/bookings/send-otp');
                 setShowOTP(true);
                 setSuccessMsg('OTP sent to your email. Please verify to confirm booking.');
             } else {
+                // Phase 2: Validate OTP code and place booking request
                 await api.post('/bookings', { eventId: event._id, otp });
                 setSuccessMsg('Booking requested! Awaiting admin confirmation.');
                 setShowOTP(false);
-                // Update local seats count dynamically after booking
+                
+                // Optimistic UI updates: decrement local seat availability count
                 setEvent({ ...event, availableSeats: event.availableSeats - 1 });
             }
         } catch (err) {
@@ -97,6 +121,7 @@ const EventDetail = () => {
                         <p className="text-zinc-350 text-lg leading-relaxed mb-6 font-light">{event.description}</p>
                     </div>
 
+                    {/* Meta/Booking Card section */}
                     <div className="bg-zinc-950/60 p-6 rounded-2xl border border-zinc-800/80 min-w-[300px] w-full md:w-auto shrink-0 shadow-sm">
                         <h3 className="text-xl font-bold text-zinc-100 mb-6">Booking Details</h3>
 
@@ -123,7 +148,7 @@ const EventDetail = () => {
                                 </div>
                             </div>
 
-                            <div className="flex items-center gap-4 text-zinc-300">
+                            <div className="flex items-center gap-4 text-zinc-350">
                                 <div className="p-2 text-zinc-400 flex items-center justify-center shrink-0 select-none">
                                     <span className="material-symbols-outlined text-[24px]">calendar_today</span>
                                 </div>
@@ -133,7 +158,7 @@ const EventDetail = () => {
                                 </div>
                             </div>
 
-                            <div className="flex items-center gap-4 text-zinc-300">
+                            <div className="flex items-center gap-4 text-zinc-350">
                                 <div className="p-2 text-zinc-400 flex items-center justify-center shrink-0 select-none">
                                     <span className="material-symbols-outlined text-[24px]">location_on</span>
                                 </div>
@@ -144,6 +169,7 @@ const EventDetail = () => {
                             </div>
                         </div>
 
+                        {/* Interactive OTP Input Box during confirmation phase */}
                         {showOTP && (
                             <div className="mb-6 animate-fadeIn">
                                 <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 mb-2">Enter OTP to Confirm</label>
@@ -169,6 +195,7 @@ const EventDetail = () => {
                         >
                             {bookingLoading ? 'Processing...' : (showOTP ? 'Verify OTP & Confirm' : (successMsg && !showOTP ? 'Request Sent' : (isSoldOut ? 'Sold Out' : 'Confirm Registration')))}
                         </button>
+                        
                         {error && <p className="text-red-400 mt-4 text-center text-sm font-medium bg-red-950/20 border border-red-900/30 p-3 rounded-xl">{error}</p>}
                         {successMsg && <p className="text-emerald-400 mt-4 text-center text-sm font-medium bg-emerald-950/20 border border-emerald-900/30 p-3 rounded-xl">{successMsg}</p>}
                     </div>
