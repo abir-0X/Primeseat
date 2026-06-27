@@ -73,15 +73,16 @@ const AdminDashboard = () => {
             navigate('/login');
             return;
         }
-        fetchData();
+        fetchData(false); // Initial loading fetch
     }, [user, navigate]);
 
     /**
      * Query Dashboard Information
      * Aggregates administrative data (events lists, reservation bookings, and revenue KPIs).
+     * Supports a silent parameter to refetch data in the background without a blocking loading spinner.
      */
-    const fetchData = async () => {
-        setLoading(true);
+    const fetchData = async (silent = false) => {
+        if (!silent) setLoading(true);
         try {
             const [eventsRes, bookingsRes, analyticsRes] = await Promise.all([
                 api.get('/events'),
@@ -94,7 +95,7 @@ const AdminDashboard = () => {
         } catch (error) {
             console.error('Error fetching admin data', error);
         } finally {
-            setLoading(false);
+            if (!silent) setLoading(false);
         }
     };
 
@@ -108,7 +109,7 @@ const AdminDashboard = () => {
             await api.post('/events', formData);
             setShowCreateModal(false);
             resetForm();
-            await fetchData();
+            await fetchData(true); // Silent refetch in the background
         } catch (error) {
             alert(error.response?.data?.message || 'Error creating event');
         } finally {
@@ -144,7 +145,7 @@ const AdminDashboard = () => {
             await api.put(`/events/${selectedEvent._id}`, formData);
             setShowEditModal(false);
             resetForm();
-            await fetchData();
+            await fetchData(true); // Silent refetch in the background
         } catch (error) {
             alert(error.response?.data?.message || 'Error updating event');
         } finally {
@@ -159,7 +160,7 @@ const AdminDashboard = () => {
         if (window.confirm('Are you sure you want to delete this event? This will affect any bookings connected to it.')) {
             try {
                 await api.delete(`/events/${id}`);
-                await fetchData();
+                await fetchData(true); // Silent refetch in the background
             } catch (error) {
                 alert(error.response?.data?.message || 'Error deleting event');
             }
@@ -168,11 +169,21 @@ const AdminDashboard = () => {
 
     /**
      * Admin: Update Booking Reservation Status (Confirmed / Rejected / Pending)
+     * Incorporates optimistic UI updates to instantly switch dropdown status value.
      */
     const handleUpdateBookingStatus = async (id, status) => {
+        const originalBookings = [...bookings];
+        const originalAnalytics = { ...analytics };
+        const originalEvents = [...events];
+
+        // Optimistically update status in frontend state instantly
+        setBookings(prevBookings =>
+            prevBookings.map(b => b._id === id ? { ...b, status } : b)
+        );
+
         try {
             await api.put(`/bookings/${id}/status`, { status });
-            // Refresh database data
+            // Fetch updated database data silently in the background
             const [bookingsRes, analyticsRes, eventsRes] = await Promise.all([
                 api.get('/bookings/my'),
                 api.get('/admin/analytics'),
@@ -182,17 +193,30 @@ const AdminDashboard = () => {
             setAnalytics(analyticsRes.data);
             setEvents(eventsRes.data);
         } catch (error) {
+            // Revert state if the API call fails
+            setBookings(originalBookings);
+            setAnalytics(originalAnalytics);
+            setEvents(originalEvents);
             alert(error.response?.data?.message || 'Error updating booking status');
         }
     };
 
     /**
      * Admin: Update Booking Payment Status (Paid / Not Paid)
+     * Incorporates optimistic UI updates to instantly switch dropdown status value.
      */
     const handleUpdatePaymentStatus = async (id, paymentStatus) => {
+        const originalBookings = [...bookings];
+        const originalAnalytics = { ...analytics };
+
+        // Optimistically update payment status in frontend state instantly
+        setBookings(prevBookings =>
+            prevBookings.map(b => b._id === id ? { ...b, paymentStatus } : b)
+        );
+
         try {
             await api.put(`/bookings/${id}/payment`, { paymentStatus });
-            // Refresh database data
+            // Fetch updated database data silently in the background
             const [bookingsRes, analyticsRes] = await Promise.all([
                 api.get('/bookings/my'),
                 api.get('/admin/analytics')
@@ -200,6 +224,9 @@ const AdminDashboard = () => {
             setBookings(bookingsRes.data);
             setAnalytics(analyticsRes.data);
         } catch (error) {
+            // Revert state if the API call fails
+            setBookings(originalBookings);
+            setAnalytics(originalAnalytics);
             alert(error.response?.data?.message || 'Error updating payment status');
         }
     };
