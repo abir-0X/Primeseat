@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { safeStorage } from './storage';
 
 /**
  * Configure Global Axios REST Client Instance
@@ -17,7 +18,7 @@ const api = axios.create({
  * headers formatted as 'Bearer <token>'.
  */
 api.interceptors.request.use((config) => {
-    const token = localStorage.getItem('token');
+    const token = safeStorage.getItem('token');
     if (token) {
         config.headers.Authorization = `Bearer ${token}`;
     }

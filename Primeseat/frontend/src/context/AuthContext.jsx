@@ -1,5 +1,6 @@
 import React, { createContext, useState, useEffect } from 'react';
 import api from '../utils/axios';
+import { safeStorage } from '../utils/storage';
 
 // Export AuthContext for use in components via useContext(AuthContext)
 export const AuthContext = createContext();
@@ -16,7 +17,7 @@ export const AuthProvider = ({ children }) => {
 
     // Initial effect hook to re-hydrate login session from local storage if existing
     useEffect(() => {
-        const userInfo = localStorage.getItem('userInfo');
+        const userInfo = safeStorage.getItem('userInfo');
         if (userInfo) {
             setUser(JSON.parse(userInfo));
         }
@@ -33,8 +34,8 @@ export const AuthProvider = ({ children }) => {
         try {
             const { data } = await api.post('/auth/login', { email, password });
             setUser(data);
-            localStorage.setItem('userInfo', JSON.stringify(data));
-            localStorage.setItem('token', data.token);
+            safeStorage.setItem('userInfo', JSON.stringify(data));
+            safeStorage.setItem('token', data.token);
             return data;
         } catch (error) {
             // Forward needsVerification indicator if user requires 2FA activation
@@ -69,8 +70,8 @@ export const AuthProvider = ({ children }) => {
         try {
             const { data } = await api.post('/auth/verify-otp', { email, otp });
             setUser(data);
-            localStorage.setItem('userInfo', JSON.stringify(data));
-            localStorage.setItem('token', data.token);
+            safeStorage.setItem('userInfo', JSON.stringify(data));
+            safeStorage.setItem('token', data.token);
             return data;
         } catch (error) {
             throw error.response?.data?.message || 'OTP verification failed';
@@ -82,8 +83,8 @@ export const AuthProvider = ({ children }) => {
      */
     const logout = () => {
         setUser(null);
-        localStorage.removeItem('userInfo');
-        localStorage.removeItem('token');
+        safeStorage.removeItem('userInfo');
+        safeStorage.removeItem('token');
     };
 
     return (
